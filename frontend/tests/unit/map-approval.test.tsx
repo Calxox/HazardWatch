@@ -23,29 +23,48 @@ const fixtures = vi.hoisted(() => ({
   } as Coordinates | undefined,
   severity: 'High' as Severity,
   chat: vi.fn(),
+  stationsLookup: vi.fn(),
+  mapVisible: undefined as ((ids: string[]) => void) | undefined,
 }))
 
 vi.mock('@/features/hazardwatch/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   chatAboutAssessment: fixtures.chat,
 }))
+vi.mock('@/features/hazardwatch/emergency-services', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  lookupEmergencyServices: fixtures.stationsLookup,
+}))
 vi.mock('@/features/hazardwatch/components/HazardMap', () => ({
-  HazardMap: ({ items, onSelect }: { items: Incident[]; onSelect: (id: string) => void }) => (
-    <div aria-label="Test map">
-      {items.map((item) => (
-        <button
-          type="button"
-          onClick={() => onSelect(item.id)}
-          key={item.id}
-          data-testid={`marker-${item.id}`}
-          data-lat={item.lat}
-          data-lng={item.lng}
-        >
-          {item.name}
-        </button>
-      ))}
-    </div>
-  ),
+  HazardMap: ({
+    items,
+    onSelect,
+    stations,
+    onVisible,
+  }: {
+    items: Incident[]
+    onSelect: (id: string) => void
+    stations: unknown[]
+    onVisible?: (ids: string[]) => void
+  }) => {
+    fixtures.mapVisible = onVisible
+    return (
+      <div aria-label="Test map" data-station-count={stations.length}>
+        {items.map((item) => (
+          <button
+            type="button"
+            onClick={() => onSelect(item.id)}
+            key={item.id}
+            data-testid={`marker-${item.id}`}
+            data-lat={item.lat}
+            data-lng={item.lng}
+          >
+            {item.name}
+          </button>
+        ))}
+      </div>
+    )
+  },
 }))
 vi.mock('@/features/hazardwatch/components/ImageUpload', () => ({
   ImageUpload: ({
@@ -100,6 +119,8 @@ beforeEach(() => {
   }
   fixtures.severity = 'High'
   fixtures.chat.mockReset()
+  fixtures.stationsLookup.mockReset().mockResolvedValue([])
+  fixtures.mapVisible = undefined
   window.history.replaceState(null, '', '#overview')
   HTMLDialogElement.prototype.showModal = function () {
     this.open = true
@@ -431,7 +452,7 @@ test('the map preserves offline locations, plots actual report coordinates and s
     events: Record<string, () => void>
     tooltip?: string
   }[] = []
-  const layer = { clearLayers() {}, addTo: () => layer }
+  const layer = { clearLayers: vi.fn(), addTo: () => layer }
   const tileEvents: Record<string, () => void> = {}
   const tiles = {
     on: (event: string, handler: () => void) => {
@@ -572,6 +593,9 @@ test('the map preserves offline locations, plots actual report coordinates and s
     })
     const geography: {
       countries: { features: { geometry: { coordinates: number[][][][] } }[] }
+      nearbyCountries: {
+        features: { properties: { name: string }; geometry: { coordinates: number[][][][] } }[]
+      }
     } = createRequire(import.meta.url)('../../public/prototype/assets/geography.js')
     const countryRings = geography.countries.features.flatMap((country) =>
       country.geometry.coordinates.map((polygon) =>
@@ -587,7 +611,7 @@ test('the map preserves offline locations, plots actual report coordinates and s
     )
     const mask = maskCall?.[0] as { type: string; coordinates: number[][][] } | undefined
     expect(mask?.type).toBe('Polygon')
-    expect(mask?.coordinates).toHaveLength(countryRings.length + 1)
+    expect(mask?.coordinates).toHaveLength(3)
     expect(mask?.coordinates[0]).toEqual([
       [-540, -85],
       [540, -85],
@@ -595,13 +619,79 @@ test('the map preserves offline locations, plots actual report coordinates and s
       [-540, 85],
       [-540, -85],
     ])
-    expect(JSON.stringify(mask?.coordinates.slice(1)) === JSON.stringify(countryRings)).toBe(true)
+    const coverageRings = mask!.coordinates.slice(1)
+    expect(coverageRings).toEqual([
+      [
+        [110, -45],
+        [157, -45],
+        [157, -8],
+        [110, -8],
+        [110, -45],
+      ],
+      [
+        [164, -50],
+        [190, -50],
+        [190, -29],
+        [164, -29],
+        [164, -50],
+      ],
+    ])
+    const foreignCall = geoJSON.mock.calls.find(
+      (call) =>
+        (call[1] as { pane?: string })?.pane === 'coverage-mask' &&
+        (call[0] as { type?: string })?.type === 'MultiPolygon'
+    )
+    const foreign = foreignCall![0] as { coordinates: number[][][][] }
+    const foreignRings = foreign.coordinates.map((polygon) => polygon[0]!)
+    expect(foreignRings).toHaveLength(42)
+    expect(geography.nearbyCountries.features.map((feature) => feature.properties.name)).toEqual([
+      'East Timor',
+      'Solomon Islands',
+      'Papua New Guinea',
+      'Indonesia',
+    ])
+    const contains = (ring: number[][], [lng, lat]: number[]) => {
+      let inside = false
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [x, y] = ring[i]!
+        const [previousX, previousY] = ring[j]!
+        if (
+          y! > lat! !== previousY! > lat! &&
+          lng! < ((previousX! - x!) * (lat! - y!)) / (previousY! - y!) + x!
+        )
+          inside = !inside
+      }
+      return inside
+    }
+    const isVisible = (point: number[]) =>
+      coverageRings.some((ring) => contains(ring, point)) &&
+      !foreignRings.some((ring) => contains(ring, point))
+    // Land plus offshore space keeps coastal roads and tile labels from being cut off.
+    for (const point of [
+      [115.4, -31.95],
+      [153.35, -27.47],
+      [151.4, -33.87],
+      [175.1, -41.29],
+      [175, -36.85],
+      [183.5, -43.95],
+      [144.9631, -37.8136],
+    ]) {
+      expect(isVisible(point)).toBe(true)
+    }
+    for (const point of [
+      [147.18, -9.47],
+      [123.9, -10],
+      [125.57, -8.56],
+      [160.15, -9.43],
+    ]) {
+      expect(isVisible(point)).toBe(false)
+    }
     expect(maskCall?.[1]).toMatchObject({
       pane: 'coverage-mask',
       interactive: false,
       style: {
         stroke: false,
-        fillColor: '#cfe3e9',
+        fillColor: '#aad3df',
         fillOpacity: 1,
         fillRule: 'evenodd',
         smoothFactor: 0,
@@ -804,6 +894,51 @@ test('the map preserves offline locations, plots actual report coordinates and s
     mapEvents.dragstart!()
     mapEvents.moveend!()
     expect(visible).toHaveBeenLastCalledWith(['VIC'])
+    const visibleCalls = visible.mock.calls.length
+    const plotCount = plots.length
+    const cameraCalls = fakeMap.setView.mock.calls.length
+    mapApi.setEmergencyStations([
+      { name: '<Test Fire>', kind: 'fire', latitude: -43.95312345, longitude: -176.51234567 },
+      { name: 'Test Hospital 1', kind: 'hospital', latitude: -37.8136, longitude: 144.9631 },
+      { name: 'Invalid station', kind: 'fire', latitude: NaN, longitude: 144 },
+      { name: 'Police excluded', kind: 'police', latitude: -37.814, longitude: 144.964 },
+      { name: 'Prototype excluded', kind: 'constructor', latitude: -37.814, longitude: 144.964 },
+      { name: 'Ambulance excluded', kind: 'ambulance', latitude: -37.814, longitude: 144.964 },
+      { name: 'Test Fire 2', kind: 'fire', latitude: -37.814, longitude: 144.964 },
+      { name: 'Test Fire 3', kind: 'fire', latitude: -37.815, longitude: 144.965 },
+      { name: 'Fire 4 excluded', kind: 'fire', latitude: -37.816, longitude: 144.966 },
+      { name: 'Test Hospital 2', kind: 'hospital', latitude: -37.817, longitude: 144.967 },
+      { name: 'Test Hospital 3', kind: 'hospital', latitude: -37.818, longitude: 144.968 },
+      { name: 'Hospital 4 excluded', kind: 'hospital', latitude: -37.819, longitude: 144.969 },
+    ])
+    const stationPlots = plots.slice(plotCount)
+    expect(stationPlots).toHaveLength(6)
+    expect(stationPlots.map((plot) => plot.icon.className)).toEqual([
+      'emergency-marker fire',
+      'emergency-marker hospital',
+      'emergency-marker fire',
+      'emergency-marker fire',
+      'emergency-marker hospital',
+      'emergency-marker hospital',
+    ])
+    expect(stationPlots[0]!.point).toEqual([-43.95312345, 183.48765433])
+    expect(stationPlots[0]!.tooltip).toBe('Fire station: &lt;Test Fire&gt;')
+    expect(stationPlots[0]!.title).toBe('Fire station: <Test Fire>')
+    expect(stationPlots[1]!.alt).toBe('Hospital: Test Hospital 1')
+    expect(stationPlots.map((plot) => plot.icon.html)).toEqual([
+      '<span>F1</span>',
+      '<span>H1</span>',
+      '<span>F2</span>',
+      '<span>F3</span>',
+      '<span>H2</span>',
+      '<span>H3</span>',
+    ])
+    expect(visible).toHaveBeenCalledTimes(visibleCalls)
+    expect(fakeMap.setView).toHaveBeenCalledTimes(cameraCalls)
+    layer.clearLayers.mockClear()
+    mapApi.setEmergencyStations([])
+    expect(layer.clearLayers).toHaveBeenCalledTimes(1)
+    expect(plots).toHaveLength(plotCount + 6)
     mapApi.destroy()
     container.innerHTML = mapApi.html()
     mapApi.mount({ searchAddresses, items, order, onSelect: selected, onViewChange: visible })
@@ -885,4 +1020,129 @@ test('directions reject invalid coordinates and preserve valid zero coordinates'
     rendered.rerender(<HazardDirections incident={{ ...testIncident, ...point }} />)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   }
+})
+
+test('selecting an approved hazard shows three hospitals and three fire stations beneath the map', async () => {
+  const stations = (['hospital', 'fire'] as const).flatMap((kind, group) =>
+    [1, 2, 3].map((index) => ({
+      id: `node/${group * 3 + index}`,
+      name: `Test Wellington ${kind} ${index}`,
+      kind,
+      latitude: -41.29 - index * 0.001,
+      longitude: 174.78,
+      distanceKm: index * 0.5,
+      address: 'Test Street',
+      phone: '',
+      website: '',
+      emergencyDepartment: 'unknown',
+    }))
+  )
+  fixtures.stationsLookup.mockResolvedValue(stations)
+  render(<HazardWorkspace />)
+  await addReport()
+  await approveReport()
+  fireEvent.click(screen.getByTestId('marker-HW-001'))
+  await screen.findByText('F1. Test Wellington fire 1')
+  expect(fixtures.stationsLookup).toHaveBeenLastCalledWith(
+    { latitude: -41.28664, longitude: 174.77557 },
+    expect.any(AbortSignal)
+  )
+  expect(screen.getByLabelText('Test map')).toHaveAttribute('data-station-count', '6')
+  expect(within(screen.getByLabelText('Test map')).getAllByRole('button')).toHaveLength(1)
+  const beneath = screen.getByRole('region', { name: 'Emergency services beneath the map' })
+  const nearest = within(beneath).getByRole('region', { name: 'Nearby emergency services' })
+  for (const name of ['Closest 3 hospitals', 'Closest 3 fire stations']) {
+    expect(
+      within(within(nearest).getByRole('region', { name })).getAllByRole('listitem')
+    ).toHaveLength(3)
+  }
+  expect(
+    within(screen.getByRole('region', { name: 'Selected hazard' })).queryByRole('region', {
+      name: 'Nearby emergency services',
+    })
+  ).not.toBeInTheDocument()
+  const first = within(nearest).getAllByRole('link', { name: /Directions in Google Maps/ })[0]!
+  expect(new URL(first.getAttribute('href')!).searchParams.get('destination')).toBe(
+    `${stations[0]!.latitude},174.78`
+  )
+  await openView('Overview', 'Bushfire overview')
+  await openView('Hazard map', 'Hazard map')
+  expect(screen.getByLabelText('Test map')).toHaveAttribute('data-station-count', '0')
+})
+
+test('emergency services stay tied to the selected hazard outside the map viewport until another hazard is selected', async () => {
+  fixtures.stationsLookup.mockImplementation(({ latitude }: { latitude: number }) =>
+    Promise.resolve([
+      {
+        id: latitude === -41.28664 ? 'node/1001' : 'node/1002',
+        name:
+          latitude === -41.28664 ? 'Test Wellington Fire Station' : 'Test Melbourne Fire Station',
+        kind: 'fire',
+        latitude,
+        longitude: latitude === -41.28664 ? 174.77557 : 144.9631,
+        distanceKm: 0.5,
+        address: '',
+        phone: '',
+        website: '',
+        emergencyDepartment: 'unknown',
+      },
+    ])
+  )
+  render(<HazardWorkspace />)
+  await addReport()
+  await approveReport()
+  await openView('Overview', 'Bushfire overview')
+  fixtures.coordinates = { latitude: -37.8136, longitude: 144.9631, source: 'coordinates' }
+  await addReport()
+  await approveReport()
+  fireEvent.click(screen.getByTestId('marker-HW-001'))
+  await screen.findByText('F1. Test Wellington Fire Station')
+
+  const lookupCalls = fixtures.stationsLookup.mock.calls.length
+  const expectWellingtonSelected = () => {
+    expect(fixtures.stationsLookup).toHaveBeenLastCalledWith(
+      { latitude: -41.28664, longitude: 174.77557 },
+      expect.any(AbortSignal)
+    )
+    expect(fixtures.stationsLookup).toHaveBeenCalledTimes(lookupCalls)
+    expect(screen.getByLabelText('Test map')).toHaveAttribute('data-station-count', '1')
+    expect(
+      within(screen.getByRole('region', { name: 'Emergency services beneath the map' })).getByText(
+        'F1. Test Wellington Fire Station'
+      )
+    ).toBeInTheDocument()
+    const directions = within(screen.getByRole('region', { name: 'Selected hazard' })).getByRole(
+      'link',
+      { name: /Directions in Google Maps/ }
+    )
+    expect(new URL(directions.getAttribute('href')!).searchParams.get('destination')).toBe(
+      '-41.28664,174.77557'
+    )
+  }
+  expectWellingtonSelected()
+  expect(fixtures.mapVisible).toBeTypeOf('function')
+  act(() => fixtures.mapVisible!(['HW-002']))
+  expect(
+    within(screen.getByRole('region', { name: 'Review queue' })).getAllByRole('listitem')
+  ).toHaveLength(1)
+  expectWellingtonSelected()
+  act(() => fixtures.mapVisible!([]))
+  expect(screen.getByText('No reports in this view')).toBeInTheDocument()
+  expectWellingtonSelected()
+
+  fireEvent.click(screen.getByTestId('marker-HW-002'))
+  await screen.findByText('F1. Test Melbourne Fire Station')
+  expect(fixtures.stationsLookup).toHaveBeenLastCalledWith(
+    { latitude: -37.8136, longitude: 144.9631 },
+    expect.any(AbortSignal)
+  )
+  expect(fixtures.stationsLookup).toHaveBeenCalledTimes(lookupCalls + 1)
+  expect(screen.queryByText('F1. Test Wellington Fire Station')).not.toBeInTheDocument()
+  const directions = within(screen.getByRole('region', { name: 'Selected hazard' })).getByRole(
+    'link',
+    { name: /Directions in Google Maps/ }
+  )
+  expect(new URL(directions.getAttribute('href')!).searchParams.get('destination')).toBe(
+    '-37.8136,144.9631'
+  )
 })

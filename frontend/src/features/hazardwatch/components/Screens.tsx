@@ -11,21 +11,24 @@ import {
 } from '@/features/hazardwatch/model'
 import { ScreenHeader, SeverityBadge, RichText } from './ui'
 import { HazardDirections } from './HazardDirections'
+import { EmergencyServiceFinder } from './EmergencyServices'
 
 export function PriorityList({
   items,
   selectedId,
+  selectedIncident,
   onSelect,
   onInspect,
   onClear,
 }: {
   items: Incident[]
   selectedId: string
+  selectedIncident?: Incident
   onSelect: (id: string) => void
   onInspect: (id: string) => void
   onClear?: () => void
 }) {
-  const selected = items.find((item) => item.id === selectedId) ?? items[0]
+  const selected = selectedIncident ?? items.find((item) => item.id === selectedId) ?? items[0]
   return (
     <section className="hw-panel hw-priority" aria-label="Review queue">
       <div className="hw-section-heading">
@@ -78,6 +81,9 @@ export function PriorityList({
       {selected && (
         <div className="hw-selection" role="region" aria-label="Selected hazard">
           <h3>{selected.name}</h3>
+          {!items.some((item) => item.id === selected.id) && (
+            <p className="hw-note">The selected hazard is outside the current view.</p>
+          )}
           <p>
             <RichText text={selected.explainability || selected.reason} />
           </p>
@@ -126,6 +132,7 @@ export function Overview({
           </button>
         }
       />
+      <EmergencyServiceFinder />
       {(reportCount > 0 || items.length > 0) && (
         <section className="hw-metrics" aria-label="Incident summary">
           {metrics.map(([label, value]) => (

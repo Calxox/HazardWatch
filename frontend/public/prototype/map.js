@@ -49,7 +49,7 @@
   const bounds = {both:[[-50,110],[-8,190]],au:[[-44,112],[-10,154]],nz:[[-48,165],[-34,190]],...Object.fromEntries(states.map(state => [state.code,state.bounds]))};
   let countryScope = 'both', stateScope = null;
   let streetTilesReady = false;
-  let map, context, markerLayer, selectedLayer, placeLayer, camera, selectedArea, activePreset = 'both', fittingPreset = false, query = '', results = [], searchMessage = '', addressController, searchVersion = 0, searchingAddress = false;
+  let map, context, markerLayer, emergencyLayer, selectedLayer, placeLayer, camera, selectedArea, activePreset = 'both', fittingPreset = false, query = '', results = [], searchMessage = '', addressController, searchVersion = 0, searchingAddress = false;
   function fitPreset(scope) { activePreset = scope; fittingPreset = true; map.stop(); map.fitBounds(bounds[scope], {padding:[22,22],animate:false}); fittingPreset = false; }
   function updatePresetControls() {
     document.querySelectorAll('[data-area-scope]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.areaScope === countryScope)));
@@ -143,6 +143,20 @@
     context.onViewChange(items.map(item=>item.id));
     updateSelection();
   }
+  function setEmergencyStations(stations) {
+    if (!map || !emergencyLayer) return;
+    emergencyLayer.clearLayers();
+    const counts = {fire:0,hospital:0};
+    if (!Array.isArray(stations)) return;
+    stations.forEach(station => {
+      if (!station || typeof station.name !== 'string' || !validPoint({lat:station.latitude,lng:station.longitude})) return;
+      if (!Object.hasOwn(counts,station.kind) || counts[station.kind] === 3) return;
+      const label = ({fire:'Fire station',hospital:'Hospital'})[station.kind];
+      const number = ++counts[station.kind];
+      root.L.marker([station.latitude,displayLng(station.longitude)], {icon:root.L.divIcon({className:'emergency-marker '+station.kind,html:'<span>' + station.kind[0].toUpperCase() + number + '</span>',iconSize:[34,34]}),zIndexOffset:-100,riseOnHover:true,title:label + ': ' + station.name,alt:label + ': ' + station.name})
+        .bindTooltip(esc(label + ': ' + station.name)).addTo(emergencyLayer);
+    });
+  }
   function selectArea(name,lat,lng,zoom) {
     countryScope = 'both';stateScope = null;
     updatePresetControls();
@@ -162,10 +176,18 @@
     map.createPane('coverage-mask');
     map.getPane('coverage-mask').style.zIndex = 350;
     map.getPane('coverage-mask').style.pointerEvents = 'none';
-    // shortcut: bundled shorelines are approximate; use finer boundaries if coastal street detail needs exact clipping.
-    root.L.geoJSON({type:'Polygon',coordinates:[[[ -540,-85],[540,-85],[540,85],[-540,85],[-540,-85]],...countryRings]}, {pane:'coverage-mask',style:{stroke:false,fillColor:'#cfe3e9',fillOpacity:1,fillRule:'evenodd',smoothFactor:0},interactive:false}).addTo(map);
+    // Keep coastal tiles/labels intact; hide foreign land separately instead of cutting at the shoreline.
+    const coverageRings = [
+      [[110,-45],[157,-45],[157,-8],[110,-8],[110,-45]],
+      [[164,-50],[190,-50],[190,-29],[164,-29],[164,-50]]
+    ];
+    const maskStyle = {stroke:false,fillColor:'#aad3df',fillOpacity:1,fillRule:'evenodd',smoothFactor:0};
+    root.L.geoJSON({type:'Polygon',coordinates:[[[ -540,-85],[540,-85],[540,85],[-540,85],[-540,-85]],...coverageRings]}, {pane:'coverage-mask',style:maskStyle,interactive:false}).addTo(map);
+    const foreignRings = geography.nearbyCountries.features.flatMap(feature => feature.geometry.coordinates.map(polygon => polygon[0].map(([lng,lat]) => [displayLng(lng),lat])));
+    root.L.geoJSON({type:'MultiPolygon',coordinates:foreignRings.map(ring => [ring])}, {pane:'coverage-mask',style:{...maskStyle,stroke:true,color:'#aad3df',weight:3},interactive:false}).addTo(map);
     placeLayer=root.L.layerGroup().addTo(map);
     markerLayer=root.L.layerGroup().addTo(map);
+    emergencyLayer=root.L.layerGroup().addTo(map);
     selectedLayer=root.L.layerGroup().addTo(map);
     streetTilesReady = false;
     const mountedMap = map;
@@ -251,6 +273,6 @@
   function destroy() {cancelAddressSearch();if(map){camera={center:map.getCenter(),zoom:map.getZoom()};map.off();map.remove();map=null;}}
   function reset() {destroy();camera=null;selectedArea=null;activePreset='both';countryScope='both';stateScope=null;query='';results=[];searchMessage='';}
   function focusIncident(item) {if(!validPoint(item))return;activePreset=null;camera={center:[item.lat,displayLng(item.lng)],zoom:12};if(map)map.setView(camera.center,camera.zoom,{animate:false});}
-  const api={html,mount,destroy,reset,focusIncident,searchPlaces,parseCoordinates};
+  const api={html,mount,destroy,reset,focusIncident,setEmergencyStations,searchPlaces,parseCoordinates};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.HazardMap=api;
 })(typeof window!=='undefined'?window:globalThis);

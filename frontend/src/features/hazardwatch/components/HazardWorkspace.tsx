@@ -22,7 +22,9 @@ import {
   incidentToCard,
   incidentToSeverityJson,
 } from '@/features/hazardwatch/api'
+import type { EmergencyStation } from '@/features/hazardwatch/emergency-services'
 import { HazardMap } from './HazardMap'
+import { NearbyEmergencyServices } from './EmergencyServices'
 import { ClassificationResult } from './ClassificationResult'
 import { ImageUpload, ReportPreview } from './ImageUpload'
 import { AssistantScreen, Overview, PriorityList, ReportFilters, ReportsScreen } from './Screens'
@@ -50,6 +52,7 @@ export function HazardWorkspace() {
   const view = useSyncExternalStore(subscribeView, readView, () => 'overview' as View)
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [selectedId, setSelectedId] = useState('')
+  const [emergencyStations, setEmergencyStations] = useState<EmergencyStation[]>([])
   const [severity, setSeverity] = useState<SeverityFilter>('All')
   const [visibleIds, setVisibleIds] = useState<string[] | null>(null)
   const [reports, setReports] = useState<Report[]>([])
@@ -265,16 +268,42 @@ export function HazardWorkspace() {
                   onClear={clearFilters}
                 />
                 <div className="hw-map-grid">
-                  <HazardMap
-                    items={filtered}
-                    onSelect={selectIncident}
-                    onVisible={onVisible}
-                    resetKey={resetKey}
-                    focusId={mapFocusId}
-                  />
+                  <div className="hw-map-column">
+                    <HazardMap
+                      items={filtered}
+                      onSelect={selectIncident}
+                      onVisible={onVisible}
+                      resetKey={resetKey}
+                      focusId={mapFocusId}
+                      stations={emergencyStations}
+                    />
+                    <section
+                      className="hw-panel hw-map-services"
+                      aria-label="Emergency services beneath the map"
+                    >
+                      <h2>Emergency services near the selected hazard</h2>
+                      {selected ? (
+                        <>
+                          <p className="hw-note">{selected.name}</p>
+                          <NearbyEmergencyServices
+                            key={selected.id}
+                            latitude={selected.lat}
+                            longitude={selected.lng}
+                            onStations={setEmergencyStations}
+                          />
+                        </>
+                      ) : (
+                        <p className="hw-note">
+                          Select an approved hazard to find the closest 3 hospitals and 3 fire
+                          stations.
+                        </p>
+                      )}
+                    </section>
+                  </div>
                   <PriorityList
                     items={visible}
                     selectedId={selectedId}
+                    selectedIncident={selected}
                     onSelect={selectIncident}
                     onInspect={inspect}
                     onClear={clearFilters}

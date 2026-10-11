@@ -3,6 +3,7 @@
 import Script from 'next/script'
 import { useEffect, useRef, useState } from 'react'
 import { type Incident } from '@/features/hazardwatch/model'
+import type { EmergencyStation } from '@/features/hazardwatch/emergency-services'
 import { searchAddresses, type PlaceSuggestion } from '@/features/hazardwatch/location'
 
 type MapOptions = {
@@ -18,6 +19,7 @@ type MapApi = {
   destroy: () => void
   reset: () => void
   focusIncident: (item: Incident) => void
+  setEmergencyStations: (stations: EmergencyStation[]) => void
 }
 let appliedReset = -1
 let appliedFocus: string | null = null
@@ -28,16 +30,24 @@ export function HazardMap({
   onVisible,
   resetKey,
   focusId,
+  stations,
 }: {
   items: Incident[]
   onSelect: (id: string) => void
   onVisible: (ids: string[]) => void
   resetKey: number
   focusId?: string | null
+  stations: EmergencyStation[]
 }) {
   const host = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<MapApi | null>(null)
+  const stationsRef = useRef(stations)
   const [ready, setReady] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  useEffect(() => {
+    stationsRef.current = stations
+    mapRef.current?.setEmergencyStations(stations)
+  }, [stations])
   useEffect(() => {
     if (!ready) return
     let disposed = false
@@ -48,6 +58,7 @@ export function HazardMap({
       .then((module) => {
         if (disposed) return
         map = module.default as unknown as MapApi
+        mapRef.current = map
         if (appliedReset !== resetKey) {
           map.reset()
           appliedReset = resetKey
@@ -61,6 +72,7 @@ export function HazardMap({
           onSelect,
           onViewChange: onVisible,
         })
+        map.setEmergencyStations(stationsRef.current)
         const focus = items.find((item) => item.id === focusId)
         const focusKey = `${resetKey}:${focusId}`
         if (focus && appliedFocus !== focusKey) {
@@ -74,6 +86,7 @@ export function HazardMap({
       })
     return () => {
       disposed = true
+      mapRef.current = null
       map?.destroy()
       container.replaceChildren()
     }

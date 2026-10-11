@@ -20,6 +20,7 @@ export function LocationInput({
   metadata,
   metadataBusy,
   metadataNotice,
+  purpose = 'capture',
 }: {
   location: string
   coordinates?: Coordinates
@@ -27,7 +28,10 @@ export function LocationInput({
   metadata?: MediaLocationMetadata | null
   metadataBusy?: boolean
   metadataNotice?: string
+  purpose?: 'capture' | 'search'
 }) {
+  const searching = purpose === 'search'
+  const prefix = searching ? 'hw-search' : 'hw'
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([])
   const [addresses, setAddresses] = useState<PlaceSuggestion[]>([])
   const [searchingAddress, setSearchingAddress] = useState(false)
@@ -130,7 +134,7 @@ export function LocationInput({
           setNotice('The device returned invalid coordinates. Choose another location method.')
           return
         }
-        confirm(location || 'Device location', result.data)
+        confirm(searching ? 'Current device location' : location || 'Device location', result.data)
       },
       (error) => {
         if (version !== request.current) return
@@ -147,25 +151,31 @@ export function LocationInput({
 
   return (
     <fieldset className="hw-location-input">
-      <legend>Capture location</legend>
+      <legend>{searching ? 'Search location' : 'Capture location'}</legend>
       <div className="hw-field">
-        <label htmlFor="hw-location">
-          Location <span>Required</span>
+        <label htmlFor={`${prefix}-location`}>
+          {searching ? (
+            'Address or place'
+          ) : (
+            <>
+              Location <span>Required</span>
+            </>
+          )}
         </label>
         <input
-          id="hw-location"
+          id={`${prefix}-location`}
           autoComplete="off"
           maxLength={240}
-          required
+          required={!searching}
           value={location}
           onChange={(event) => {
             invalidate()
             onChange(event.target.value, undefined)
           }}
           placeholder="Street address, town, region or named place…"
-          aria-describedby="hw-location-help"
+          aria-describedby={`${prefix}-location-help`}
         />
-        <small id="hw-location-help">
+        <small id={`${prefix}-location-help`}>
           Place suggestions work offline. Find address sends this input to online address lookup;
           include the suburb or postcode for a more precise match.
         </small>
@@ -248,15 +258,15 @@ export function LocationInput({
       )}
       <div className="hw-coordinate-grid">
         <div className="hw-field">
-          <label htmlFor="hw-latitude">Latitude</label>
+          <label htmlFor={`${prefix}-latitude`}>Latitude</label>
           <input
-            id="hw-latitude"
+            id={`${prefix}-latitude`}
             type="text"
             inputMode="decimal"
             value={latitude}
             placeholder="-33.87"
             aria-invalid={latitudeInvalid || undefined}
-            aria-describedby={latitudeInvalid ? 'hw-latitude-error' : undefined}
+            aria-describedby={latitudeInvalid ? `${prefix}-latitude-error` : undefined}
             onChange={(event) => {
               invalidate()
               setLatitude(event.target.value)
@@ -264,21 +274,21 @@ export function LocationInput({
             }}
           />
           {latitudeInvalid && (
-            <small id="hw-latitude-error" className="hw-error" role="status">
+            <small id={`${prefix}-latitude-error`} className="hw-error" role="status">
               Latitude must be decimal degrees from -90 to 90.
             </small>
           )}
         </div>
         <div className="hw-field">
-          <label htmlFor="hw-longitude">Longitude</label>
+          <label htmlFor={`${prefix}-longitude`}>Longitude</label>
           <input
-            id="hw-longitude"
+            id={`${prefix}-longitude`}
             type="text"
             inputMode="decimal"
             value={longitude}
             placeholder="151.21"
             aria-invalid={longitudeInvalid || undefined}
-            aria-describedby={longitudeInvalid ? 'hw-longitude-error' : undefined}
+            aria-describedby={longitudeInvalid ? `${prefix}-longitude-error` : undefined}
             onChange={(event) => {
               invalidate()
               setLongitude(event.target.value)
@@ -286,7 +296,7 @@ export function LocationInput({
             }}
           />
           {longitudeInvalid && (
-            <small id="hw-longitude-error" className="hw-error" role="status">
+            <small id={`${prefix}-longitude-error`} className="hw-error" role="status">
               Longitude must be decimal degrees from -180 to 180.
             </small>
           )}
@@ -297,7 +307,12 @@ export function LocationInput({
           type="button"
           className="hw-button hw-secondary"
           disabled={!entered}
-          onClick={() => confirm(location || 'Entered capture coordinates', entered!)}
+          onClick={() =>
+            confirm(
+              searching ? 'Entered search coordinates' : location || 'Entered capture coordinates',
+              entered!
+            )
+          }
         >
           Apply coordinates
         </button>
@@ -306,8 +321,9 @@ export function LocationInput({
         </button>
       </div>
       <p className="hw-note">
-        Use signed decimal degrees. Device location is your position now; confirm that it matches
-        where the media was captured.
+        {searching
+          ? 'Select an address or place, apply coordinates, or use your current device location to find nearby services.'
+          : 'Use signed decimal degrees. Device location is your position now; confirm that it matches where the media was captured.'}
       </p>
       {notice && (
         <p role="status" className="hw-error">
@@ -324,14 +340,18 @@ export function LocationInput({
               <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
                 OpenStreetMap contributors
               </a>
-              ; check that this is the capture address.
+              ;{' '}
+              {searching
+                ? 'check that this is the search address.'
+                : 'check that this is the capture address.'}
             </span>
           )}
           {coordinates.accuracy !== undefined && ` · ±${Math.round(coordinates.accuracy)} m`}
           {!inMapCoverage(coordinates) && (
             <span>
-              Outside current Australia/New Zealand map coverage; this report cannot be added to the
-              map.
+              {searching
+                ? 'Outside Australia/New Zealand coverage; nearby services cannot be searched here.'
+                : 'Outside current Australia/New Zealand map coverage; this report cannot be added to the map.'}
             </span>
           )}
         </p>
