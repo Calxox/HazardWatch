@@ -56,7 +56,11 @@ TAG="$(date +%y%m%d%H%M)"
 IMAGE="${REGISTRY_IMAGE}:${TAG}"
 
 echo "Step 1/3: log in to Docker Hub as $DH_USER (paste your access token when asked for the password)"
-docker login -u "$DH_USER" docker.io
+if grep -q 'docker.io' "$HOME/.docker/config.json" 2>/dev/null && [ "${FORCE_LOGIN:-0}" != "1" ]; then
+  echo "Already logged in to Docker Hub (set FORCE_LOGIN=1 to log in again)."
+else
+  docker login -u "$DH_USER" docker.io
+fi
 
 echo "Step 2/3: building and pushing $IMAGE (linux/amd64) ..."
 docker buildx build --platform linux/amd64 -f "$BUILD_DIR/Dockerfile.frontend" -t "$IMAGE" --push "$BUILD_DIR"

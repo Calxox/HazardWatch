@@ -20,12 +20,17 @@
 | `deploy.env.example` | every variable the scripts need (names only) |
 | `vision-service/scripts/edge_tests.sh`, `fp_check.sh`, `check_watsonx.sh`, `check_cos.py` | tests and connectivity checks |
 
-The model file (`best_bushfire_multitask.pt`) is baked into / fetched by the API image and is not in git.
+The model file is not in git or in the image. At start-up the API downloads it from the Object Storage bucket (default key `models/best_bushfire_multitask.pt`, override with `COS_MODEL_KEY`), so that object must exist in the bucket named by `COS_BUCKET_NAME`.
 
 ## Secrets: how to share them
 `.env` holds real keys (COS, Cloudant, App ID, Firebase service account). Do not post it in chat or commit it.
 Share values one at a time through a password manager, or have each teammate create their own IBM API key
 after being invited to the IBM account (Manage > Access (IAM) > Users > Invite users).
+
+The real `.env` is deliberately not part of this kit: it holds live COS, Cloudant, App ID and Firebase
+service-account keys. If a teammate needs to deploy, send them only the four `COS_*` values
+(`COS_ENDPOINT`, `COS_API_KEY_ID`, `COS_INSTANCE_CRN`, `COS_BUCKET_NAME`) in a direct message, plus the
+`WATSONX_AI_*` values once they are valid. Never send the whole file.
 
 ## Deploy the API
 1. `ibmcloud login --sso`, install the Code Engine plugin.
