@@ -17,6 +17,8 @@ export interface SeverityJson {
   duration_sec?: number | null
   frames_sampled?: number | null
   severity_frame_counts?: Record<string, number> | null
+  needs_review?: boolean
+  review_reason?: string | null
 }
 
 const VISION_API =
@@ -83,6 +85,8 @@ export async function assessMedia(
       explainability_note: z.string().nullable().optional(),
       frames_sampled: z.number().int().positive().nullable().optional(),
       duration_sec: z.number().nonnegative().nullable().optional(),
+      needs_review: z.boolean().optional(),
+      review_reason: z.string().nullable().optional(),
     })
     .safeParse(await res.json())
   if (!parsed.success)

@@ -80,6 +80,7 @@ export interface MediaAssessment {
   inputType: 'image' | 'video'
   framesSampled?: number
   durationSec?: number
+  needsReview?: boolean
 }
 
 export interface Report extends ReportContext {

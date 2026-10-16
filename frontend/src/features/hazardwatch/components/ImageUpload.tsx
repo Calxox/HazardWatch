@@ -180,7 +180,9 @@ export function ImageUpload({
       const next: MediaAssessment = {
         severity: uiSeverity,
         confidence: Math.round(result.severity_confidence * 1000) / 10,
-        hazard: hazardLabel(uiSeverity, result.key_features || []),
+        hazard: result.needs_review
+          ? 'Needs human review'
+          : hazardLabel(uiSeverity, result.key_features || []),
         keyFeatures: result.key_features || [],
         keyFeatureScores: scores,
         explainability:
@@ -190,6 +192,7 @@ export function ImageUpload({
         inputType: result.input_type,
         framesSampled: result.frames_sampled ?? undefined,
         durationSec: result.duration_sec ?? undefined,
+        needsReview: result.needs_review === true,
       }
       submitted.current = true
       setAssessment(next)
@@ -427,7 +430,11 @@ export function ImageUpload({
           <div className="hw-success">
             <Check size={36} />
             <strong>{reportId}</strong>
-            <SeverityBadge severity={assessment.severity} />
+            {assessment.needsReview ? (
+              <span className="hw-badge hw-unassessed">Needs review</span>
+            ) : (
+              <SeverityBadge severity={assessment.severity} />
+            )}
             <p>
               {assessment.hazard} · {assessment.confidence}% confidence
             </p>
@@ -453,7 +460,11 @@ export function ReportPreview({ report }: { report: Report }) {
         <img src={report.preview} alt={`Submitted evidence for ${report.location}`} />
       )}
       <div>
-        <SeverityBadge severity={assessment?.severity ?? 'Unassessed'} />
+        {assessment?.needsReview ? (
+          <span className="hw-badge hw-unassessed">Needs review</span>
+        ) : (
+          <SeverityBadge severity={assessment?.severity ?? 'Unassessed'} />
+        )}
         <h3>{report.location}</h3>
         <p>
           {report.id && `${report.id} · `}
