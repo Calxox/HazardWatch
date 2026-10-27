@@ -1,17 +1,27 @@
 # HazardWatch
 
-HazardWatch is a web workspace for reviewing bushfire reports from images and videos. It helps a team turn submitted media into a location-confirmed, AI-assisted assessment, review it, and display approved reports on a shared map during the current browser session.
+HazardWatch is a web workspace for reviewing possible bushfire reports from images and videos. It combines media capture details, a vision service assessment, human review, and a map of approved reports. It is designed to support triage discussions; it does not dispatch responders or provide live fire information.
 
-## What it does
+## How a report moves through the app
 
-- **Collects media and context.** Submit JPEG, PNG, WebP, MP4, WebM, or MOV files up to 25 MB. Add the source and capture time, and provide a location by confirming media GPS, finding an address or place, entering coordinates, or requesting device location.
-- **Assesses possible hazard severity.** The optional vision service analyzes an image or sampled video and returns a severity, confidence, feature scores, and an explanation. Uncertain results can be flagged for review.
-- **Keeps approval with the reviewer.** Each report remains pending until a person checks the assessment and confirms the location. Approval adds it to the workspace map; it does not dispatch responders or certify that a location is safe.
-- **Maps and prioritizes reports.** Review approved reports on a street map across Australia and New Zealand. Filter by severity and map area, inspect report details, and open directions to a selected location.
-- **Finds nearby emergency services.** Look up nearby hospitals and fire stations for a confirmed location or selected approved report. The app shows published contact details when available and links to external maps. Emergency calls in Australia go to 000; in New Zealand, 111.
-- **Answers questions about approved reports.** The assistant uses the approved reports in the current session as context. Verify its responses against the original media and assessment.
+1. **Submit media.** Choose a JPEG, PNG, WebP, MP4, WebM, or MOV file up to 25 MB. Add the source and capture time.
+2. **Confirm the location.** Confirm GPS found in supported image/video metadata, search for an address or place, enter latitude and longitude, or request the device's current location. The app does not infer a location from what an image depicts.
+3. **Request an assessment.** The vision service returns a severity, confidence, feature scores, and an explanation. Results can be flagged for human review when the model indicates uncertainty.
+4. **Review and approve.** Check the original media, location, and assessment. Approval adds the report to the map in this browser session; pending reports remain in the report register.
+5. **Explore and discuss.** Filter approved reports by severity or map area, inspect their evidence, find nearby hospitals and fire stations, and ask the assistant questions grounded in the approved reports.
 
-## Run the frontend
+The Overview, Map, Reports, and Assistant views share the same in-memory session. Higher severity reports are prioritized ahead of lower severity reports. A map approval is a workspace action; it is not an operational dispatch approval.
+
+## Main capabilities
+
+- **Media location metadata:** reads supported JPEG/PNG/WebP EXIF GPS and selected MP4/MOV QuickTime GPS tags. Unsupported or missing metadata leaves manual location options available.
+- **Address and place search:** searches Australia and New Zealand addresses through Photon and uses bundled place data for offline place suggestions. Address results are shown for the user to select and confirm.
+- **Australia/New Zealand map:** displays approved reports on OpenStreetMap street tiles, with bundled geography as a fallback. Country and Australian state/territory map filters are available.
+- **Nearby emergency services:** looks up hospitals and fire stations within 100 km using OpenStreetMap data through Overpass. Published contacts and external directions are shown when available.
+- **Assessment assistant:** answers questions about the approved report set in the current session. Watsonx configuration is optional; the service has a local response fallback.
+- **Optional object storage:** when IBM Cloud Object Storage is configured, the vision service can store uploaded evidence and retrieve the model checkpoint. Without it, local model files can be used and uploads are not copied to cloud storage.
+
+## Run locally
 
 Requirements: Node.js 22 or newer and pnpm 10 or newer.
 
@@ -20,19 +30,29 @@ pnpm install
 pnpm --filter frontend dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The workspace opens without an account or database. To connect the optional vision service, set `NEXT_PUBLIC_VISION_API_URL` in `frontend/.env.local` (it defaults to `http://localhost:8000`) and start the service. See [frontend/README.md](frontend/README.md) for service and model setup, and [the IBM Cloud deployment guide](docs/IBM-CLOUD-DEPLOYMENT.md) for deployment.
+Open [http://localhost:3000](http://localhost:3000). The frontend starts without an account or database. The vision API URL defaults to `http://localhost:8000`; set `NEXT_PUBLIC_VISION_API_URL` in `frontend/.env.local` if the service is at another address.
 
-## How the project is organized
+To run the vision service, install the Python dependencies from `vision-service/requirements.txt` and start it from the `vision-service/` directory:
 
-- `frontend/` — Next.js app, report workflow, map, address lookup, and emergency-services lookup.
+```sh
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+Real image/video assessment requires the trained `best_bushfire_multitask.pt` model. The service looks for it at `MODEL_PATH`, in the repository root, in the repository's parent, or under `vision-service/models/`; IBM Cloud Object Storage can provide it when configured. GPS extraction does not require the model. See [frontend/README.md](frontend/README.md) for the detailed local workflow and [docs/IBM-CLOUD-DEPLOYMENT.md](docs/IBM-CLOUD-DEPLOYMENT.md) for deployment.
+
+The root [.env.example](.env.example) lists optional service settings. Copy it to `.env` to configure Photon, object storage, or Watsonx. Keep credentials server-side; `NEXT_PUBLIC_*` settings are included in the browser build.
+
+## Project layout
+
+- `frontend/` — Next.js app, report workflow, map, and API routes for address and emergency-services lookup.
 - `vision-service/` — Python API for media GPS extraction, image/video assessment, and assistant responses.
-- `docs/screenshots/` — screenshots and capture manifest documenting the earlier prototype.
-- `docs/Shared/` and `docs/ux-ui/` — project requirements, research, and design notes.
+- `docs/` — architecture, deployment, project notes, and prototype screenshot evidence.
 
-The map uses OpenStreetMap street tiles and Photon address lookup. Nearby services are queried from OpenStreetMap data through Overpass. These public services may be incomplete or unavailable; the app provides manual location entry as a fallback.
+See [the architecture guide](docs/ARCHITECTURE.md) for request paths and component responsibilities, and the [handover guide](docs/HANDOVER-GUIDE.md) for clean setup, deployment operations, access transfer, and known technical debt. The screenshot gallery and capture metadata are in [docs/screenshots](docs/screenshots/).
 
 ## Data and limitations
 
-There is no sign-in, database, or shared persistence. Reports, approvals, uploaded media previews, and chat history stay in browser memory and are cleared when the page is reloaded. The vision service needs its model and configuration for real assessments; without it, assessment requests can fail. Media GPS extraction can work without loading the model.
+There is no sign-in or report database. Reports, approvals, uploaded-media previews, and assistant history live in browser memory and are cleared on reload. If object storage is configured, the vision service may keep a separate copy of submitted media; report records and approval state are still not persisted by the frontend.
 
-HazardWatch is a review aid, not an emergency dispatch system. Its assessments, service listings, distances, maps, and directions can be incomplete or wrong. It does not provide live fire boundaries, verified evacuation routes, emergency response availability, or a guarantee of safety. In an emergency, contact local emergency services directly.
+The public Photon, OpenStreetMap tile, and Overpass services can be incomplete or unavailable. Model results can be wrong, service listings can be outdated, and distances or directions are not verified safe routes. HazardWatch has no live fire boundaries, responder availability, or dispatch capability. In an emergency, contact local emergency services directly.
