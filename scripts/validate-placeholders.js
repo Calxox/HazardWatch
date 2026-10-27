@@ -26,7 +26,6 @@ const CHECKED_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.json', '.md', '.yaml
 const SKIP_PATTERNS = [
   'node_modules',
   '.next',
-  '.firebase',
   '/lib/',
   'dist/',
   '.git/',

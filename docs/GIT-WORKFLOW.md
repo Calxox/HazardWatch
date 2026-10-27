@@ -44,10 +44,10 @@ type(scope): description
 Examples:
 feat: add notes feature
 fix(auth): handle token expiry on refresh
-docs: update Firestore schema for notes
-refactor(backend): extract auth middleware
-test: add integration tests for health route
-chore: upgrade firebase-admin to v13
+docs: update location search notes
+refactor(location): share coordinate validation
+test: cover assessment approval flow
+chore: update frontend dependencies
 ```
 
 **Types:** `feat` · `fix` · `docs` · `style` · `refactor` · `test` · `chore` · `build` · `ci` · `perf` · `revert`

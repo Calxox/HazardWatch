@@ -33,7 +33,7 @@ if [ -f "$FRONTEND_ENV" ]; then
   grep -E '^NEXT_PUBLIC_[A-Z0-9_]+=.+' "$FRONTEND_ENV" \
     | grep -vE '^NEXT_PUBLIC_(APP_URL|VISION_API_URL)=' >> "$ENVPROD" || true
 else
-  echo "Note: $FRONTEND_ENV not found; building without Firebase/App ID public settings."
+  echo "Note: $FRONTEND_ENV not found; building with default public settings."
 fi
 echo "NEXT_PUBLIC_VISION_API_URL=${VISION_URL%/}" >> "$ENVPROD"
 echo "Build settings written: $(cut -d= -f1 "$ENVPROD" | tr '\n' ' ')"

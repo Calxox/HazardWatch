@@ -15,10 +15,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    template: `%s | ${process.env.NEXT_PUBLIC_APP_NAME ?? 'App'}`,
-    default: process.env.NEXT_PUBLIC_APP_NAME ?? 'App',
+    template: '%s | HazardWatch',
+    default: 'HazardWatch',
   },
-  description: 'Built on garage-boilerplate',
+  description: 'HazardWatch emergency environmental response workspace',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

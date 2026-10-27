@@ -13,11 +13,6 @@ pre-commit:
       glob: 'src/**/*.{ts,tsx}'
       run: npx eslint --fix {staged_files}
 
-    lint-backend:
-      root: 'backend/'
-      glob: 'src/**/*.ts'
-      run: npx eslint --fix {staged_files}
-
 commit-msg:
   commands:
     conventional-commit:

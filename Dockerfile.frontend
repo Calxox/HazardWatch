@@ -12,7 +12,6 @@ FROM base AS deps
 RUN apk add --no-cache git
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml lefthook.yml ./
 COPY frontend/package.json ./frontend/package.json
-COPY backend/package.json ./backend/package.json
 RUN git init
 RUN pnpm install --frozen-lockfile
 

@@ -23,8 +23,8 @@ if (!pattern.test(msg)) {
   console.error('\n  Examples:')
   console.error('    feat: add invoice PDF export')
   console.error('    fix(auth): handle token expiry on refresh')
-  console.error('    docs: update Firestore schema')
-  console.error('    chore: upgrade firebase-admin to v13\n')
+  console.error('    docs: update location search notes')
+  console.error('    chore: update frontend dependencies\n')
   process.exit(1)
 }
 

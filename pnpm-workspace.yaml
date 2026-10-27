@@ -1,13 +1,7 @@
 packages:
   - 'frontend'
-  - 'backend'
 
 overrides:
-  # firebase-functions pulls in @types/express@4 transitively, which conflicts
-  # with our own @types/express@^5 (backend uses Express 5) and causes
-  # environment-dependent type errors depending on how pnpm hoists the two
-  # versions. Force one version everywhere.
-  '@types/express': '^5.0.1'
   # next@16.2.12 still bundles its own old postcss internally (separate from
   # the patched one Tailwind/Vite already use) — force it to a patched
   # version too. postcss 8.x is backward-compatible within the major.
@@ -20,7 +14,6 @@ overrides:
   # nanoid: '^3.3.17'
 
 allowBuilds:
-  '@firebase/util': true
   esbuild: true
   lefthook: true
   protobufjs: true

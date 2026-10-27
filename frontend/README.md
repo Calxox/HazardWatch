@@ -9,7 +9,7 @@ pnpm --filter frontend dev --port 3001 --hostname 127.0.0.1
 
 Open http://127.0.0.1:3001. This starts the Next.js frontend in `frontend/`. The workspace starts empty and shows uploaded reports after assessment and approval. Tours, reset controls, example uploads and fictional incidents have been removed.
 
-The root HazardWatch workspace runs without Firebase credentials. Protected boilerplate routes still require their original backend/environment configuration; use the filtered frontend command above for this workspace.
+The HazardWatch workspace runs without an account or database. The optional vision service uses the root `.env` for its server-side settings. Set `NEXT_PUBLIC_VISION_API_URL` in `frontend/.env.local` when the service runs at a different address.
 
 ## Local metadata and assessment service
 
@@ -44,7 +44,7 @@ Set-Location vision-service
 & '..\.tools\vision-location\Scripts\python.exe' -B -m unittest discover -s tests -p test_runtime_paths.py -v
 ```
 
-The frontend API URL defaults to `http://localhost:8000`. If a different service URL is needed, set `NEXT_PUBLIC_VISION_API_URL` in the terminal before starting/building the frontend, or use the repository's root `.env` and `pnpm run env:sync`. The API reads root `.env` directly. Its default CORS origins permit localhost/127.0.0.1 on ports 3000/3001; set server-only `CORS_ORIGINS` to a comma-separated origin list for another preview origin.
+The frontend API URL defaults to `http://localhost:8000`. If a different service URL is needed, set `NEXT_PUBLIC_VISION_API_URL` in `frontend/.env.local` or in the terminal before starting/building the frontend. The API reads root `.env` directly. Its default CORS origins permit localhost/127.0.0.1 on ports 3000/3001; set server-only `CORS_ORIGINS` to a comma-separated origin list for another preview origin.
 
 The chatbot service uses rules grounded in the supplied reports when Watsonx is not configured. Optional Watsonx settings remain server-only; live Watsonx inference has not been validated in this iteration. The frontend requires an approved assessment before questions can be sent. A service failure shows an availability error without inventing an answer.
 
@@ -67,7 +67,7 @@ Place suggestions still use the map's offline towns/regions/named places. **Find
 
 Street lookup uses [Photon](https://github.com/komoot/photon#demo-server) and OpenStreetMap data, with no API key for modest usage. It runs only on explicit search, through the Next.js `/api/geocode` endpoint; typed addresses go to the lookup provider at that point. Coverage is incomplete and the public service has no availability guarantee. Missing addresses remain unresolved and the existing manual/GPS methods remain usable. Address points represent mapped buildings/address features, not surveyed or unit-level locations. The Leaflet map now loads OpenStreetMap street tiles showing roads, buildings and mapped green areas. Bundled country geography remains underneath as a fallback if tiles fail. Named-place labels are hidden once street detail loads to avoid duplicate labels. The Blue Mountains map preset has been removed; the region remains searchable as a real place.
 
-Optional server-only `PHOTON_API_URL` can select a Photon-compatible `/api/` endpoint in root `.env`; run `pnpm run env:sync` and restart the frontend after changing it. Leave it blank for the default. Requests are bounded, have an 8-second provider timeout, and use a 100-query/10-minute in-memory cache plus one request per second per server process. Use a private service and shared rate limiting before expanding deployment beyond modest single-process use. Display [OpenStreetMap attribution](https://www.openstreetmap.org/copyright) when showing or distributing geocoded results.
+Optional server-only `PHOTON_API_URL` can select a Photon-compatible `/api/` endpoint in root `.env`; restart the frontend after changing it. Leave it blank for the default. Requests are bounded, have an 8-second provider timeout, and use a 100-query/10-minute in-memory cache plus one request per second per server process. Use a private service and shared rate limiting before expanding deployment beyond modest single-process use. Display [OpenStreetMap attribution](https://www.openstreetmap.org/copyright) when showing or distributing geocoded results.
 
 Image GPS supports JPEG/PNG/WebP EXIF. Video GPS supports selected static MP4/MOV QuickTime tags. Missing/unsupported metadata or service failure leaves manual location methods available. See [supported formats and samples](../vision-service/tests/fixtures/README.md).
 

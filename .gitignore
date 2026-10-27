@@ -16,16 +16,8 @@ frontend/.next/
 frontend/out/
 frontend/.turbo/
 
-# Firebase
-.firebase/
-firebase-debug.log
-firestore-debug.log
-ui-debug.log
-
 # Build outputs
 frontend/dist/
-backend/lib/
-backend/dist/
 
 # Testing
 coverage/
