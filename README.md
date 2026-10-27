@@ -49,7 +49,7 @@ The root [.env.example](.env.example) lists optional service settings. Copy it t
 - `vision-service/` — Python API for media GPS extraction, image/video assessment, and assistant responses.
 - `docs/` — architecture, deployment, project notes, and prototype screenshot evidence.
 
-See [the architecture guide](docs/ARCHITECTURE.md) for request paths and component responsibilities, and the [handover guide](docs/HANDOVER-GUIDE.md) for clean setup, deployment operations, access transfer, and known technical debt. The screenshot gallery and capture metadata are in [docs/screenshots](docs/screenshots/).
+See [the architecture guide](docs/ARCHITECTURE.md) for request paths and component responsibilities. The screenshot gallery and capture metadata are in [docs/screenshots](docs/screenshots/).
 
 ## Data and limitations
 
