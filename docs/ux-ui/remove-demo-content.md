@@ -6,7 +6,7 @@ The active Next.js website now opens with no incident records. It uses uploaded 
 
 Removed the preloaded fictional incidents and confidence values, guided tour, reset-to-sample behavior, fixed demo clock/status, example-image upload and sample evidence fallback. The hardcoded named-site questions and scripted frontend answers were removed. Chat now requires an actual approved assessment; service failures show an availability error.
 
-The old standalone page, app, data model and stylesheet were removed from `frontend/public/prototype/`, along with the demo photograph/source/provenance and replaced generic mark. The offline map, named-place geography, Leaflet runtime/license and supplied logo remain. The original top-level `prototype/` is retained as historical source; it is not served by the active frontend. Synthetic fixtures remain test-only.
+The old standalone page, app, data model and stylesheet were removed from `frontend/public/prototype/`, along with the demo photograph/source/provenance and replaced generic mark. The offline map, named-place geography, Leaflet runtime/license and supplied logo remain. The separate historical prototype source has been removed. Synthetic fixtures remain test-only.
 
 Overview, map, reports, assessment and assistant have empty states. The report register uses one row per upload; approval does not duplicate a row. Removing the final marker keeps its report in the register and leaves an empty map. Report identifiers use `HW-` rather than `DEMO-`.
 

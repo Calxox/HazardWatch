@@ -20,13 +20,13 @@ pnpm install
 pnpm --filter frontend dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The workspace opens without an account or database. To connect the optional vision service, set `NEXT_PUBLIC_VISION_API_URL` in `frontend/.env.local` (it defaults to `http://localhost:8000`) and start the service. See [frontend/README.md](frontend/README.md) for service, model, and deployment setup.
+Open [http://localhost:3000](http://localhost:3000). The workspace opens without an account or database. To connect the optional vision service, set `NEXT_PUBLIC_VISION_API_URL` in `frontend/.env.local` (it defaults to `http://localhost:8000`) and start the service. See [frontend/README.md](frontend/README.md) for service and model setup, and [the IBM Cloud deployment guide](docs/IBM-CLOUD-DEPLOYMENT.md) for deployment.
 
 ## How the project is organized
 
 - `frontend/` — Next.js app, report workflow, map, address lookup, and emergency-services lookup.
 - `vision-service/` — Python API for media GPS extraction, image/video assessment, and assistant responses.
-- `prototype/` — historical static prototype; it is not used by the current app.
+- `docs/screenshots/` — screenshots and capture manifest documenting the earlier prototype.
 - `docs/Shared/` and `docs/ux-ui/` — project requirements, research, and design notes.
 
 The map uses OpenStreetMap street tiles and Photon address lookup. Nearby services are queried from OpenStreetMap data through Overpass. These public services may be incomplete or unavailable; the app provides manual location entry as a fallback.

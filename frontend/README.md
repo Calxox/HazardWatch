@@ -118,7 +118,7 @@ Only uploaded evidence and returned assessment results enter the report register
 
 Reports, approval, review marks, media blob previews and conversation stay in browser memory. Navigation preserves them; reloading clears them and returns to an empty workspace. Stopping the server does not clear an already-open page until reload. There is no database persistence or shared reviewer approval.
 
-The old standalone files were removed from `frontend/public/prototype/`, including their dummy data and example imagery. This public directory now retains the offline map, geography, Leaflet runtime/license and HazardWatch branding. The original repository-level `prototype/` is historical source and is not served by the current frontend.
+The old standalone files were removed from `frontend/public/prototype/`, including their dummy data and example imagery. This public directory now retains the offline map, geography, Leaflet runtime/license and HazardWatch branding.
 
 ## Checks and handoff
 
