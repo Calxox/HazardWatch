@@ -528,6 +528,19 @@
 .hw-selection .hw-text-button {
   margin-top: 5px;
 }
+.hw-directions {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hw-line);
+}
+.hw-directions .hw-inline-actions {
+  gap: 8px;
+  margin-top: 10px;
+}
+.hw-directions .hw-button {
+  font-size: 12px;
+  padding: 9px 12px;
+}
 .hw-filters {
   display: flex;
   align-items: center;
@@ -555,10 +568,7 @@
   box-shadow: 0 1px 3px #23392b12;
   font-weight: 600;
 }
-.hw-filter-search {
-  flex: 1;
-  min-width: 180px;
-}
+
 .hw-app input,
 .hw-app select,
 .hw-app textarea {
@@ -637,6 +647,17 @@
 .hw-map .map-presets button:hover {
   background: #eaf0e1;
 }
+.hw-map .map-presets button[aria-pressed='true'] {
+  border-color: var(--hw-ink);
+  background: #eaf0e1;
+  font-weight: 600;
+}
+.hw-map .state-presets {
+  display: contents;
+}
+.hw-map .state-presets[hidden] {
+  display: none;
+}
 .hw-map #area-results {
   padding: 0 20px;
 }
@@ -664,7 +685,7 @@
 }
 .hw-map .interactive-map {
   height: 470px;
-  background: #e9f0f2;
+  background: #aad3df;
   z-index: 0;
 }
 .hw-map .area-status {
@@ -675,7 +696,7 @@
   border-top: 1px solid var(--hw-line);
 }
 .hw-map .area-status > small {
-  display: none;
+  color: var(--hw-muted);
 }
 .hw-map .area-status > span {
   color: var(--hw-muted);
@@ -694,6 +715,10 @@
 }
 .hw-map .leaflet-container {
   font-family: inherit;
+}
+/* Keep street tiles opaque above the offline country outlines. */
+.hw-map .leaflet-container img.leaflet-tile {
+  mix-blend-mode: normal;
 }
 .hw-map .leaflet-control-zoom a {
   width: 42px;
@@ -1356,10 +1381,7 @@
     padding: 8px;
     font-size: 12px;
   }
-  .hw-filter-search {
-    min-width: 0;
-    flex-basis: 70%;
-  }
+
   .hw-map .area-search {
     padding: 16px 12px 8px;
   }
@@ -1375,8 +1397,11 @@
   .hw-map .map-presets {
     padding-inline: 12px;
   }
-  .hw-map .map-presets button {
+  .hw-map .map-presets > button {
     flex: 1 1 40%;
+  }
+  .hw-map .state-presets button {
+    flex: 1 0 44px;
   }
   .hw-map .area-status {
     padding: 14px 12px;
@@ -1562,4 +1587,139 @@
   display: block;
   margin-top: 8px;
   color: var(--hw-high);
+}
+
+.hw-emergency-finder {
+  padding: 24px;
+  margin-bottom: 28px;
+}
+.hw-emergency-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hw-emergency-heading h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.hw-emergency-finder > p {
+  margin: 12px 0;
+}
+.hw-emergency-call {
+  padding: 12px 14px;
+  background: #fbeee7;
+  border-left: 3px solid var(--hw-high);
+  border-radius: 4px;
+  font-weight: 600;
+}
+.hw-emergency-call a {
+  color: inherit;
+  text-decoration: underline;
+}
+.hw-nearby {
+  border-top: 1px solid var(--hw-line);
+  padding-top: 18px;
+  margin-top: 20px;
+}
+.hw-nearby h3 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+.hw-station-list {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0;
+}
+.hw-station-list li {
+  border-top: 1px solid var(--hw-line);
+  padding: 14px 0;
+}
+.hw-station-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.hw-station-heading strong {
+  font-size: 14px;
+}
+.hw-station-heading span {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.hw-station-list .hw-inline-actions {
+  gap: 8px;
+  margin-top: 10px;
+}
+.hw-station-list .hw-button {
+  font-size: 12px;
+  padding: 8px 10px;
+}
+.hw-map .emergency-marker {
+  display: grid;
+  place-items: center;
+  background: #1d5f86;
+  color: white;
+  border: 2px solid white;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px #18384735;
+  font-size: 12px;
+  font-weight: 700;
+}
+@media (max-width: 640px) {
+  .hw-emergency-finder {
+    padding: 18px;
+  }
+  .hw-emergency-heading h2 {
+    font-size: 19px;
+  }
+}
+
+.hw-map-column {
+  min-width: 0;
+  display: grid;
+  gap: 20px;
+}
+.hw-map-services {
+  padding: 22px;
+}
+.hw-map-services > h2 {
+  margin: 0;
+  font-size: 21px;
+}
+.hw-emergency-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 20px;
+}
+.hw-emergency-groups h4 {
+  margin: 0;
+  font-size: 17px;
+}
+.hw-station-contacts {
+  display: flex;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.hw-station-contacts a {
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+.hw-station-list p {
+  margin: 8px 0;
+}
+.hw-map .emergency-marker.fire {
+  background: #b54729;
+}
+.hw-map .emergency-marker.hospital {
+  background: #1d5f86;
+}
+@media (max-width: 760px) {
+  .hw-emergency-groups {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
 }

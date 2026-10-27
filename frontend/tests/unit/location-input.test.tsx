@@ -229,3 +229,38 @@ test('unmatched or failed address search keeps manual and offline location input
     'Entered coordinates'
   )
 })
+
+test('invalid coordinate fields explain decimal ranges and clear errors after correction', () => {
+  render(<Harness />)
+  const latitude = screen.getByLabelText('Latitude')
+  const longitude = screen.getByLabelText('Longitude')
+  const apply = screen.getByRole('button', { name: 'Apply coordinates' })
+  expect(latitude).not.toHaveAttribute('aria-invalid')
+  expect(longitude).not.toHaveAttribute('aria-invalid')
+  expect(screen.queryByText(/must be decimal degrees/)).not.toBeInTheDocument()
+  for (const value of ['91', '-91', 'NaN', '1e2', '-33,87']) {
+    fireEvent.change(latitude, { target: { value } })
+    expect(latitude).toHaveAttribute('aria-invalid', 'true')
+    expect(latitude).toHaveAccessibleDescription('Latitude must be decimal degrees from -90 to 90.')
+    expect(longitude).not.toHaveAttribute('aria-invalid')
+    expect(apply).toBeDisabled()
+  }
+  fireEvent.change(latitude, { target: { value: '-33.87' } })
+  expect(latitude).not.toHaveAttribute('aria-invalid')
+  expect(screen.queryByText(/Latitude must/)).not.toBeInTheDocument()
+  for (const value of ['181', '-181', 'Infinity', '151 E']) {
+    fireEvent.change(longitude, { target: { value } })
+    expect(longitude).toHaveAttribute('aria-invalid', 'true')
+    expect(longitude).toHaveAccessibleDescription(
+      'Longitude must be decimal degrees from -180 to 180.'
+    )
+    expect(latitude).not.toHaveAttribute('aria-invalid')
+    expect(apply).toBeDisabled()
+  }
+  fireEvent.change(longitude, { target: { value: ' ' } })
+  expect(longitude).not.toHaveAttribute('aria-invalid')
+  expect(screen.queryByText(/Longitude must/)).not.toBeInTheDocument()
+  expect(apply).toBeDisabled()
+  fireEvent.change(longitude, { target: { value: '151.21' } })
+  expect(apply).toBeEnabled()
+})

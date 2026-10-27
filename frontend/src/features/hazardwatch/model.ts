@@ -4,6 +4,18 @@ import { captureTimeNow, coordinateSchema, inMapCoverage } from '@/features/haza
 export type Severity = 'None' | 'Low' | 'Moderate' | 'High' | 'Extreme'
 export type SeverityFilter = Severity | 'All'
 
+const severityRank: Record<Severity, number> = {
+  None: 0,
+  Low: 1,
+  Moderate: 2,
+  High: 3,
+  Extreme: 4,
+}
+
+export function sortIncidentsBySeverity(items: Incident[]): Incident[] {
+  return [...items].sort((a, b) => severityRank[b.severity] - severityRank[a.severity])
+}
+
 /** Notebook-aligned feature keys → display label. */
 export function formatFeatureLabel(key: string): string {
   return key.split('_').join(' ')
@@ -35,6 +47,8 @@ export interface Incident {
   video?: string
   capturedAt?: string
   locationSource?: string
+  countryCode?: 'AU' | 'NZ'
+  region?: string
   /** Legacy queue blurb; prefer explainability in UI. */
   reason: string
   context: string
@@ -118,6 +132,8 @@ export function reportToIncident(report: Report): Incident | null {
     lat: point.latitude,
     lng: point.longitude,
     locationSource: point.source,
+    countryCode: point.countryCode,
+    region: point.region,
     hectares: '—',
     quality: report.mediaType === 'video' ? 'Video' : 'Uploaded',
     reviewed: false,
@@ -130,17 +146,8 @@ export function reportToIncident(report: Report): Incident | null {
   }
 }
 
-export function filterIncidents(
-  items: Incident[],
-  severity: SeverityFilter = 'All',
-  query = ''
-): Incident[] {
-  const needle = query.trim().toLowerCase()
-  return items.filter(
-    (item) =>
-      (severity === 'All' || item.severity === severity) &&
-      `${item.id} ${item.name} ${item.area} ${item.hazard}`.toLowerCase().includes(needle)
-  )
+export function filterIncidents(items: Incident[], severity: SeverityFilter = 'All'): Incident[] {
+  return items.filter((item) => severity === 'All' || item.severity === severity)
 }
 export function validateMedia(file?: Pick<File, 'type' | 'size'> | null): string {
   if (!file) return 'Choose an image or video to continue.'

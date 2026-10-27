@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { ImageUpload } from '@/features/hazardwatch/components/ImageUpload'
 import { reportSchema, type Report } from '@/features/hazardwatch/model'
 import { captureTimeNow } from '@/features/hazardwatch/location'
-import type { SeverityJson } from '@/features/hazardwatch/api'
+import type { MediaLocationMetadata, SeverityJson } from '@/features/hazardwatch/api'
 
 const service = vi.hoisted(() => ({ assess: vi.fn(), metadata: vi.fn() }))
 vi.mock('@/features/hazardwatch/api', async (importOriginal) => ({
@@ -185,4 +185,80 @@ test('a metadata service failure still allows manual location entry for video', 
   review()
   expect(screen.getByRole('heading', { name: 'Check your report' })).toBeInTheDocument()
   expect(service.assess).not.toHaveBeenCalled()
+})
+
+test.each([
+  'Invalid location metadata. Enter a location manually.',
+  'Invalid coordinates in media metadata. Enter a location manually.',
+])('invalid metadata shows its reason and allows manual continuation: %s', async (message) => {
+  service.metadata.mockRejectedValueOnce(new Error(message))
+  render(<ImageUpload onClose={() => {}} onSubmit={() => 'HW-INVALID'} onViewReport={() => {}} />)
+  await chooseMedia()
+  await screen.findByText(new RegExp(message.replaceAll('.', '\\.')))
+  expect(screen.queryByRole('button', { name: 'Use location from media' })).not.toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText(/^Location/), {
+    target: { value: 'Confirmed capture point' },
+  })
+  applyCoordinates()
+  review()
+  expect(screen.getByRole('heading', { name: 'Check your report' })).toBeInTheDocument()
+})
+
+test('malformed metadata JSON shows a safe fallback rather than parser output', async () => {
+  service.metadata.mockRejectedValueOnce(new SyntaxError('Unexpected token < in private response'))
+  render(<ImageUpload onClose={() => {}} onSubmit={() => 'HW-JSON'} onViewReport={() => {}} />)
+  await chooseMedia()
+  await screen.findByText(/The local metadata service is unavailable/)
+  expect(screen.queryByText(/private response/)).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Apply coordinates' })).toBeInTheDocument()
+})
+
+test('metadata from replaced media cannot overwrite its replacement or a manual location', async () => {
+  let resolve!: (value: MediaLocationMetadata) => void
+  service.metadata.mockReturnValueOnce(
+    new Promise<MediaLocationMetadata>((done) => {
+      resolve = done
+    })
+  )
+  const current: MediaLocationMetadata = {
+    status: 'found',
+    latitude: -41.2866,
+    longitude: 174.7756,
+    source: 'quicktime',
+    detail: 'Video GPS found.',
+  }
+  service.metadata.mockResolvedValueOnce(current)
+  render(<ImageUpload onClose={() => {}} onSubmit={() => 'HW-REPLACED'} onViewReport={() => {}} />)
+  const first = new File(['old'], 'old.mp4', { type: 'video/mp4' })
+  const second = new File(['new'], 'new.mov', { type: 'video/quicktime' })
+  const user = userEvent.setup()
+  await user.upload(screen.getByLabelText('Choose media'), first)
+  await waitFor(() => expect(service.metadata).toHaveBeenCalledTimes(1))
+  const oldSignal = service.metadata.mock.calls[0]![1] as AbortSignal
+  await user.upload(screen.getByLabelText('Change media'), second)
+  await waitFor(() => expect(service.metadata).toHaveBeenCalledTimes(2))
+  expect(oldSignal.aborted).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: 'Add context' }))
+  await screen.findByText(/Video location metadata: -41.286600, 174.775600/)
+  fireEvent.change(screen.getByLabelText(/^Location/), {
+    target: { value: 'Manual capture point' },
+  })
+  applyCoordinates()
+  await act(async () =>
+    resolve({
+      status: 'found',
+      latitude: -37.81,
+      longitude: 144.96,
+      source: 'exif',
+      detail: 'Old GPS found.',
+    })
+  )
+  expect(screen.queryByText(/Image GPS metadata:/)).not.toBeInTheDocument()
+  expect(screen.getByText(/Video location metadata:/)).toBeInTheDocument()
+  expect(screen.getByLabelText(/^Location/)).toHaveValue('Manual capture point')
+  expect(screen.getByText(/Location confirmed:/).closest('p')).toHaveTextContent(
+    '-33.713000, 150.311000'
+  )
+  review()
+  expect(screen.getByRole('heading', { name: 'Check your report' })).toBeInTheDocument()
 })

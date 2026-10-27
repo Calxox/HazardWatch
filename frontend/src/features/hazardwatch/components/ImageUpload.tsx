@@ -94,10 +94,16 @@ export function ImageUpload({
     try {
       const result = await readMediaLocation(file, controller.signal)
       if (version === selection.current) setMetadata(result)
-    } catch {
+    } catch (error) {
       if (version === selection.current)
         setMetadataNotice(
-          'The local metadata service is unavailable or the file could not be read.'
+          error instanceof Error &&
+            [
+              'Invalid location metadata. Enter a location manually.',
+              'Invalid coordinates in media metadata. Enter a location manually.',
+            ].includes(error.message)
+            ? error.message
+            : 'The local metadata service is unavailable or the file could not be read.'
         )
     } finally {
       clearTimeout(timeout)
@@ -341,7 +347,8 @@ export function ImageUpload({
                   aria-describedby="hw-date-help"
                 />
                 <small id="hw-date-help">
-                  Use the capture time, not the upload time. Sydney time includes AEST/AEDT.
+                  Defaults to now. Enter the media capture time in Sydney time (AEST/AEDT); file
+                  timestamps are not extracted.
                 </small>
               </div>
               <div className="hw-field">

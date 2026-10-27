@@ -5,6 +5,8 @@ export const coordinateSchema = z.object({
   longitude: z.number().finite().min(-180).max(180),
   source: z.enum(['exif', 'quicktime', 'coordinates', 'device', 'place', 'address']),
   accuracy: z.number().finite().nonnegative().optional(),
+  countryCode: z.enum(['AU', 'NZ']).optional(),
+  region: z.string().trim().min(1).max(240).optional(),
 })
 export type Coordinates = z.infer<typeof coordinateSchema>
 export const locationSources: Record<Coordinates['source'], string> = {
@@ -49,6 +51,10 @@ export function captureTimeNow(): string {
     .replace(' ', 'T')
 }
 
+function normaliseRegion(value?: string): string | undefined {
+  return value?.trim().replace(/^State of\s+/i, '') || undefined
+}
+
 export interface PlaceSuggestion {
   label: string
   coordinates: Coordinates
@@ -57,7 +63,9 @@ export async function suggestPlaces(query: string): Promise<PlaceSuggestion[]> {
   // Reuse the map's local gazetteer; this is place search, not street-address geocoding.
   const mapModule = await import('@prototype/map.js')
   const map = mapModule.default as unknown as {
-    searchPlaces: (value: string) => { place: [string, string, string, number, number, number] }[]
+    searchPlaces: (
+      value: string
+    ) => { place: [string, string, 'AU' | 'NZ', number, number, number] }[]
   }
   return map.searchPlaces(query).map(({ place }) => ({
     label: `${place[0]}, ${place[1]}, ${place[2] === 'AU' ? 'Australia' : 'New Zealand'}`,
@@ -65,6 +73,8 @@ export async function suggestPlaces(query: string): Promise<PlaceSuggestion[]> {
       latitude: place[3],
       longitude: place[4] > 180 ? place[4] - 360 : place[4],
       source: 'place',
+      countryCode: place[2],
+      region: normaliseRegion(place[1]),
     },
   }))
 }
@@ -133,6 +143,8 @@ export function parseAddressResults(query: string, body: unknown): PlaceSuggesti
         longitude: geometry.coordinates[0],
         latitude: geometry.coordinates[1],
         source: 'address',
+        countryCode: p.countrycode,
+        region: normaliseRegion(p.state),
       })
       if (!point.success || !inMapCoverage(point.data)) return []
       // A unit query resolves the building's mapped point; do not claim unit-level positioning.

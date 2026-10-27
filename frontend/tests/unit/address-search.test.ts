@@ -1,5 +1,10 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { parseAddressResults, searchAddresses } from '@/features/hazardwatch/location'
+import {
+  coordinateSchema,
+  parseAddressResults,
+  searchAddresses,
+  suggestPlaces,
+} from '@/features/hazardwatch/location'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -29,7 +34,13 @@ test('numbered address lookup preserves street labels and rejects suburb centres
   expect(result).toEqual([
     {
       label: '257 Test Road, Glenroy, Victoria, Australia',
-      coordinates: { latitude: -37.81, longitude: 144.96, source: 'address' },
+      coordinates: {
+        latitude: -37.81,
+        longitude: 144.96,
+        source: 'address',
+        countryCode: 'AU',
+        region: 'Victoria',
+      },
     },
   ])
   expect(parseAddressResults('257, Test Road', { features: [house] })[0]?.label).toMatch(
@@ -89,4 +100,71 @@ test('lookup rejects cross-site and oversized requests while accepting the brows
   expect((await POST(request('{"query":"x"}'))).status).toBe(400)
   expect((await POST(request('{"query":"x"}', 'https://unrelated.example'))).status).toBe(403)
   expect((await POST(request('x'.repeat(2049)))).status).toBe(413)
+})
+
+test('place suggestions retain known country and canonical region without guessing missing divisions', async () => {
+  const melbourne = (await suggestPlaces('Melbourne')).find((place) =>
+    /^Melbourne,/.test(place.label)
+  )
+  expect(melbourne?.label).toContain('State of Victoria')
+  expect(melbourne?.coordinates).toMatchObject({ countryCode: 'AU', region: 'Victoria' })
+  const wellington = (await suggestPlaces('Wellington')).find((place) =>
+    /^Wellington,/.test(place.label)
+  )
+  expect(wellington?.coordinates).toMatchObject({ countryCode: 'NZ', region: 'Wellington' })
+  const country = (await suggestPlaces('New Zealand')).find(
+    (place) => place.label === 'New Zealand, , New Zealand'
+  )
+  expect(country?.coordinates.countryCode).toBe('NZ')
+  expect(country?.coordinates.region).toBeUndefined()
+})
+
+test('address metadata normalizes the known state prefix and leaves missing regions unspecified', () => {
+  const address = (state: string | undefined, countrycode = 'AU') => ({
+    geometry: {
+      type: 'Point',
+      coordinates: countrycode === 'NZ' ? [174.77, -41.28] : [144.96, -37.81],
+    },
+    properties: { housenumber: '257', street: 'Test Road', state, countrycode },
+  })
+  const result = parseAddressResults('257 Test Road', {
+    features: [address('State of Victoria')],
+  })[0]!
+  expect(result.label).toBe('257 Test Road, State of Victoria, Australia')
+  expect(result.coordinates.region).toBe('Victoria')
+  expect(
+    parseAddressResults('257 Test Road', { features: [address('Wellington', 'NZ')] })[0]
+      ?.coordinates
+  ).toMatchObject({ countryCode: 'NZ', region: 'Wellington' })
+  for (const state of [undefined, '', '   ']) {
+    const point = parseAddressResults('257 Test Road', { features: [address(state)] })[0]
+      ?.coordinates
+    expect(point?.countryCode).toBe('AU')
+    expect(point?.region).toBeUndefined()
+  }
+})
+
+test('address response validation preserves optional metadata and still supports coordinate-only inputs', async () => {
+  const coordinates = {
+    latitude: -37.81,
+    longitude: 144.96,
+    source: 'address',
+    countryCode: 'AU',
+    region: 'Victoria',
+  }
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [{ label: '257 Test Road, Victoria, Australia', coordinates }],
+      }),
+    })
+  )
+  expect((await searchAddresses('257 Test Road'))[0]?.coordinates).toEqual(coordinates)
+  expect(
+    coordinateSchema.safeParse({ latitude: -37.81, longitude: 144.96, source: 'device' }).success
+  ).toBe(true)
+  expect(coordinateSchema.safeParse({ ...coordinates, countryCode: 'US' }).success).toBe(false)
+  expect(coordinateSchema.safeParse({ ...coordinates, region: ' ' }).success).toBe(false)
 })

@@ -10,21 +10,25 @@ import {
   type SeverityFilter,
 } from '@/features/hazardwatch/model'
 import { ScreenHeader, SeverityBadge, RichText } from './ui'
+import { HazardDirections } from './HazardDirections'
+import { EmergencyServiceFinder } from './EmergencyServices'
 
 export function PriorityList({
   items,
   selectedId,
+  selectedIncident,
   onSelect,
   onInspect,
   onClear,
 }: {
   items: Incident[]
   selectedId: string
+  selectedIncident?: Incident
   onSelect: (id: string) => void
   onInspect: (id: string) => void
   onClear?: () => void
 }) {
-  const selected = items.find((item) => item.id === selectedId) ?? items[0]
+  const selected = selectedIncident ?? items.find((item) => item.id === selectedId) ?? items[0]
   return (
     <section className="hw-panel hw-priority" aria-label="Review queue">
       <div className="hw-section-heading">
@@ -75,11 +79,15 @@ export function PriorityList({
         />
       )}
       {selected && (
-        <div className="hw-selection">
+        <div className="hw-selection" role="region" aria-label="Selected hazard">
           <h3>{selected.name}</h3>
+          {!items.some((item) => item.id === selected.id) && (
+            <p className="hw-note">The selected hazard is outside the current view.</p>
+          )}
           <p>
             <RichText text={selected.explainability || selected.reason} />
           </p>
+          <HazardDirections incident={selected} />
           <button className="hw-text-button" onClick={() => onInspect(selected.id)}>
             Inspect evidence <ArrowRight size={16} />
           </button>
@@ -124,6 +132,7 @@ export function Overview({
           </button>
         }
       />
+      <EmergencyServiceFinder />
       {(reportCount > 0 || items.length > 0) && (
         <section className="hw-metrics" aria-label="Incident summary">
           {metrics.map(([label, value]) => (
@@ -155,15 +164,11 @@ export function Overview({
 
 export function ReportFilters({
   severity,
-  query,
   onSeverity,
-  onQuery,
   onClear,
 }: {
   severity: SeverityFilter
-  query: string
   onSeverity: (level: SeverityFilter) => void
-  onQuery: (query: string) => void
   onClear: () => void
 }) {
   return (
@@ -175,19 +180,7 @@ export function ReportFilters({
           </button>
         ))}
       </div>
-      <div className="hw-filter-search">
-        <label htmlFor="hw-report-search" className="hw-sr-only">
-          Filter reports
-        </label>
-        <input
-          id="hw-report-search"
-          type="search"
-          placeholder="Filter reports by name…"
-          value={query}
-          onChange={(event) => onQuery(event.target.value)}
-        />
-      </div>
-      {(severity !== 'All' || query) && (
+      {severity !== 'All' && (
         <button className="hw-text-button" onClick={onClear}>
           Clear
         </button>

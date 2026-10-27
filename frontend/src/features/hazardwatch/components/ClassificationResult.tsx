@@ -7,6 +7,7 @@ import {
   type Incident,
 } from '@/features/hazardwatch/model'
 import { ScreenHeader, SeverityBadge, RichText } from './ui'
+import { HazardDirections } from './HazardDirections'
 import { locationSources, type Coordinates } from '@/features/hazardwatch/location'
 
 export function ClassificationResult({
@@ -90,6 +91,7 @@ export function ClassificationResult({
                 </>
               )}
             </dl>
+            <HazardDirections incident={incident} />
           </div>
         </section>
         <section className="hw-panel hw-panel-body" aria-labelledby="hw-classification-title">
