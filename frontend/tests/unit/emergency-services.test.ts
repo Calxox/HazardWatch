@@ -28,11 +28,15 @@ const request = (body: unknown = point, origin = 'http://localhost:3002') =>
 let provider: ReturnType<typeof vi.fn>
 beforeEach(() => {
   vi.resetModules()
+  vi.stubEnv('OVERPASS_API_URL', '')
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
   provider = vi.fn().mockImplementation(async () => Response.json(payload))
   vi.stubGlobal('fetch', provider)
 })
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+  vi.restoreAllMocks()
   vi.useRealTimers()
 })
 
@@ -152,14 +156,14 @@ test('empty results are valid but partial or malformed provider responses fail',
   }
 })
 
-test('route uses a fixed provider, a country-limited query and caches exact-coordinate searches', async () => {
+test('route defaults to the public provider, limits countries and caches exact-coordinate searches', async () => {
   const { POST } = await import('@/app/api/emergency-services/route')
   const response = await POST(request())
   expect(response.status).toBe(200)
   expect(await response.json()).toMatchObject({ radiusKm: 100, stations: [{ id: 'node/1' }] })
   expect(response.headers.get('Cache-Control')).toBe('no-store')
   const [url, init] = provider.mock.calls[0]!
-  expect(url).toBe('https://overpass-api.de/api/interpreter')
+  expect(String(url)).toBe('https://overpass-api.de/api/interpreter')
   const query = new URLSearchParams(init.body).get('data')!
   expect(query).toContain('^(AU|NZ)$')
   expect(query).toContain('(around:100000,-37.8136,144.9631)(area.countries)')
@@ -171,6 +175,28 @@ test('route uses a fixed provider, a country-limited query and caches exact-coor
   expect((await POST(request())).status).toBe(200)
   expect(provider).toHaveBeenCalledTimes(1)
 })
+
+test('route uses the configured server-only provider without accepting a browser override', async () => {
+  vi.stubEnv('OVERPASS_API_URL', 'https://overpass.example.test/api/interpreter')
+  const { POST } = await import('@/app/api/emergency-services/route')
+  expect((await POST(request({ ...point, endpoint: 'https://foreign.test' }))).status).toBe(400)
+  expect(provider).not.toHaveBeenCalled()
+  expect((await POST(request())).status).toBe(200)
+  expect(String(provider.mock.calls[0]![0])).toBe('https://overpass.example.test/api/interpreter')
+  expect(provider.mock.calls[0]![1].headers['User-Agent']).toContain(
+    'https://github.com/Calxox/HazardWatch'
+  )
+})
+
+test.each(['invalid-url', 'file:///tmp/stations.json'])(
+  'invalid provider configuration %s fails without a network request',
+  async (endpoint) => {
+    vi.stubEnv('OVERPASS_API_URL', endpoint)
+    const { POST } = await import('@/app/api/emergency-services/route')
+    expect((await POST(request())).status).toBe(503)
+    expect(provider).not.toHaveBeenCalled()
+  }
+)
 
 test.each([
   { latitude: -37.8, longitude: '144.9);out;' },
@@ -216,6 +242,7 @@ test('coalesces concurrent searches for one point and throttles a different poin
   const first = POST(request())
   await vi.waitFor(() => expect(provider).toHaveBeenCalledTimes(1))
   const second = POST(request())
+  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 1001)
   const busy = await POST(request({ ...point, latitude: -37.82 }))
   expect(busy.status).toBe(429)
   expect(busy.headers.get('Retry-After')).toBe('2')
@@ -238,6 +265,10 @@ test.each(['http', 'partial', 'invalid', 'large', 'timeout'])(
     const { POST } = await import('@/app/api/emergency-services/route')
     const response = await POST(request())
     expect(response.status).toBe(503)
+    expect(console.warn).toHaveBeenCalledWith('Emergency service lookup failed.', {
+      type: mode === 'timeout' ? 'TimeoutError' : expect.any(String),
+      upstreamStatus: mode === 'http' ? 504 : undefined,
+    })
     expect(await response.json()).toEqual({
       error: 'Station lookup is unavailable. Please retry later.',
     })
