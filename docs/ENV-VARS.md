@@ -33,6 +33,7 @@ pnpm run env:sync       # also runs automatically before `pnpm run dev`
 | `NEXT_PUBLIC_APP_URL` | No | Yes | Public app URL (`http://localhost:3000` locally) |
 | `NEXT_PUBLIC_APP_NAME` | No | Yes | App display name |
 | `PHOTON_API_URL` | No | No | Server-only Photon-compatible `/api/` endpoint for explicit AU/NZ address search. Blank uses `https://photon.komoot.io/api/`; no API key is needed. Public service is for reasonable usage and offers no availability guarantee. |
+| `OVERPASS_API_URL` | No | No | Server-only complete Overpass interpreter URL for nearby hospitals/fire stations. Blank uses `https://overpass-api.de/api/interpreter`. Public providers can be overloaded; configure a dedicated or hosted instance with AU/NZ coverage for reliable service. |
 | `CORS_ORIGIN` | No | No | Allowed CORS origin for the API (empty = deny all cross-origin) |
 | `PORT` | No | No | Local Functions dev server port (default `5001`) |
 | `STITCH_API_KEY` | **Yes** | No | Google Stitch key for the Claude Code MCP (stays in root `.env` only) |
